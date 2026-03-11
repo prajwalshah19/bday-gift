@@ -39,8 +39,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const isLast = currentSlide === slides.length - 1
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-primary-50 px-4">
-      <div className="max-w-md w-full text-center">
+    <div className="h-screen overflow-auto flex items-center justify-center bg-gradient-to-b from-white to-primary-50 px-4">
+      <div className="max-w-md w-full text-center py-12">
         {/* Slide content */}
         <div key={currentSlide} className="animate-fade-in">
           <div className="text-6xl mb-8 animate-float">{slide.emoji}</div>

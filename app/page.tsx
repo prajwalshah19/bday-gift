@@ -75,7 +75,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="h-screen overflow-auto flex items-center justify-center bg-white">
         <div className="text-center animate-fade-in">
           <div className="text-5xl mb-4 animate-pulse-soft">💝</div>
           <p className="text-primary-400 font-script text-xl">Loading...</p>
@@ -93,7 +93,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="h-screen bg-white relative overflow-hidden">
       <Header photoCount={photos.length} />
       <MapView
         photos={photos}
@@ -103,7 +103,7 @@ export default function Home() {
       {/* Upload FAB */}
       <button
         onClick={() => setShowUpload(true)}
-        className="fixed bottom-8 right-8 z-[1000] w-14 h-14 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center text-2xl active:scale-95"
+        className="fixed bottom-6 right-6 z-[1000] w-14 h-14 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center text-2xl active:scale-95 safe-bottom"
         aria-label="Upload photos"
       >
         +

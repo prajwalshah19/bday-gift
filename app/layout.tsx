@@ -1,9 +1,22 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#ffffff',
+}
 
 export const metadata: Metadata = {
   title: 'Our Map',
   description: 'Our memories, mapped together',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Our Map',
+  },
 }
 
 export default function RootLayout({

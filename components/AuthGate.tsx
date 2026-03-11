@@ -67,7 +67,7 @@ export default function AuthGate({ onSuccess }: AuthGateProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-primary-50 px-4">
+    <div className="h-screen overflow-auto flex items-center justify-center bg-gradient-to-b from-white to-primary-50 px-4">
       <div className="text-center animate-fade-in">
         {/* Heart */}
         <div className="text-6xl mb-6 heart-beat">💝</div>
