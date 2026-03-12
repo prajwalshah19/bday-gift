@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { getAppData, saveAppData, uploadPhoto, uploadThumbnail } from '@/lib/store'
+import { getAppData, uploadPhoto, uploadThumbnail, savePhotoMeta } from '@/lib/store'
 import type { Photo } from '@/lib/types'
 
 // Get all photos
@@ -51,21 +51,8 @@ export async function POST(request: NextRequest) {
       comments: [],
     }
 
-    // Update metadata with retry to handle race conditions
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const data = await getAppData()
-        // Avoid duplicates if a retry re-reads
-        if (!data.photos.some((p) => p.id === id)) {
-          data.photos.push(newPhoto)
-        }
-        await saveAppData(data)
-        break
-      } catch (e) {
-        if (attempt === 2) throw e
-        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)))
-      }
-    }
+    // Save this photo's metadata as its own blob — no read-modify-write race
+    await savePhotoMeta(newPhoto)
 
     return NextResponse.json(newPhoto, { status: 201 })
   } catch (e) {

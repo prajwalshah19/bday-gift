@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppData, saveAppData, deletePhotoBlobs } from '@/lib/store'
+import { getAppData, savePhotoMeta, deletePhotoMeta, deletePhotoBlobs } from '@/lib/store'
 
 // Update photo caption and/or location
 export async function PATCH(
@@ -20,7 +20,7 @@ export async function PATCH(
     photo.lng = Number(body.lng)
   }
 
-  await saveAppData(data)
+  await savePhotoMeta(photo)
 
   return NextResponse.json(photo)
 }
@@ -31,17 +31,16 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   const data = await getAppData()
-  const photoIndex = data.photos.findIndex((p) => p.id === params.id)
+  const photo = data.photos.find((p) => p.id === params.id)
 
-  if (photoIndex === -1) {
+  if (!photo) {
     return NextResponse.json({ error: 'Photo not found' }, { status: 404 })
   }
 
-  const photo = data.photos[photoIndex]
-  await deletePhotoBlobs(photo.url, photo.thumbnailUrl)
-
-  data.photos.splice(photoIndex, 1)
-  await saveAppData(data)
+  await Promise.all([
+    deletePhotoBlobs(photo.url, photo.thumbnailUrl),
+    deletePhotoMeta(photo.id),
+  ])
 
   return NextResponse.json({ success: true })
 }

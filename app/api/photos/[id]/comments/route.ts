@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { getAppData, saveAppData } from '@/lib/store'
+import { getAppData, savePhotoMeta } from '@/lib/store'
 
 // Add a comment to a photo
 export async function POST(
@@ -31,7 +31,7 @@ export async function POST(
   }
 
   photo.comments.push(comment)
-  await saveAppData(data)
+  await savePhotoMeta(photo)
 
   return NextResponse.json(photo, { status: 201 })
 }
@@ -59,7 +59,7 @@ export async function DELETE(
   }
 
   photo.comments = photo.comments.filter((c) => c.id !== commentId)
-  await saveAppData(data)
+  await savePhotoMeta(photo)
 
   return NextResponse.json(photo)
 }
