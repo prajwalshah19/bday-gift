@@ -33,7 +33,7 @@ export async function getAppData(): Promise<AppData> {
     const { blobs } = await list({ prefix: 'metadata.json' })
     const metaBlob = blobs.find((b) => b.pathname === 'metadata.json')
     if (metaBlob) {
-      const res = await fetch(metaBlob.url, { cache: 'no-store' })
+      const res = await fetch(metaBlob.downloadUrl, { cache: 'no-store' })
       if (res.ok) return res.json()
     }
   } catch (e) {
@@ -59,7 +59,7 @@ export async function saveAppData(data: AppData): Promise<void> {
   } catch {}
 
   await put('metadata.json', JSON.stringify(data), {
-    access: 'public',
+    access: 'private',
     addRandomSuffix: false,
     contentType: 'application/json',
   })
@@ -78,12 +78,12 @@ export async function uploadPhoto(
     return `/api/local-files/photos/${filename}`
   }
 
-  const blob = await put(`photos/${filename}`, file, {
-    access: 'public',
+  await put(`photos/${filename}`, file, {
+    access: 'private',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return blob.url
+  return `/api/blob/photos/${filename}`
 }
 
 // --------------- Thumbnail Upload ---------------
@@ -99,12 +99,12 @@ export async function uploadThumbnail(
     return `/api/local-files/thumbs/${filename}`
   }
 
-  const blob = await put(`thumbs/${filename}`, file, {
-    access: 'public',
+  await put(`thumbs/${filename}`, file, {
+    access: 'private',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return blob.url
+  return `/api/blob/thumbs/${filename}`
 }
 
 // --------------- Delete ---------------
