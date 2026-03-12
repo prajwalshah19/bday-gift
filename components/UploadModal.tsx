@@ -6,7 +6,7 @@ import LocationPicker from './LocationPicker'
 
 interface UploadModalProps {
   onClose: () => void
-  onUploaded: () => void
+  onUploaded: (newPhotos: import('@/lib/types').Photo[]) => void
 }
 
 interface PendingPhoto {
@@ -171,6 +171,8 @@ export default function UploadModal({ onClose, onUploaded }: UploadModalProps) {
     setUploadProgress(0)
 
     let uploaded = 0
+    const uploadedPhotos: import('@/lib/types').Photo[] = []
+
     for (const photo of photosWithLocation) {
       const formData = new FormData()
       formData.append('photo', photo.compressed, photo.file.name)
@@ -196,6 +198,8 @@ export default function UploadModal({ onClose, onUploaded }: UploadModalProps) {
               continue
             }
           } else {
+            const created = await res.json()
+            uploadedPhotos.push(created)
             success = true
             break
           }
@@ -212,6 +216,8 @@ export default function UploadModal({ onClose, onUploaded }: UploadModalProps) {
         console.error('Upload failed after retries:', lastError)
         setError(`Failed to upload ${photo.file.name}: ${lastError}`)
         setUploading(false)
+        // Still pass back any photos that did upload
+        if (uploadedPhotos.length > 0) onUploaded(uploadedPhotos)
         return
       }
 
@@ -221,7 +227,7 @@ export default function UploadModal({ onClose, onUploaded }: UploadModalProps) {
 
     // Clean up previews
     pending.forEach((p) => URL.revokeObjectURL(p.preview))
-    onUploaded()
+    onUploaded(uploadedPhotos)
   }
 
   function handleDrop(e: React.DragEvent) {

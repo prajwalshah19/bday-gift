@@ -78,8 +78,13 @@ export default function Home() {
     setShowOnboarding(false)
   }
 
-  function handlePhotoUploaded() {
-    loadPhotos()
+  function handlePhotoUploaded(newPhotos: Photo[]) {
+    // Optimistically merge new photos into state immediately
+    setPhotos((prev) => {
+      const ids = new Set(prev.map((p) => p.id))
+      const unique = newPhotos.filter((p) => !ids.has(p.id))
+      return [...prev, ...unique]
+    })
     setShowUpload(false)
   }
 
