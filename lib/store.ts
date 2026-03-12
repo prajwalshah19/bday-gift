@@ -1,63 +1,50 @@
-import { put, list, del } from '@vercel/blob'
+import fs from 'fs/promises'
+import path from 'path'
 import type { AppData } from './types'
 
-const METADATA_PATH = 'metadata.json'
+const DATA_DIR = path.join(process.cwd(), '.local-storage')
+const PHOTOS_DIR = path.join(DATA_DIR, 'photos')
+const THUMBS_DIR = path.join(DATA_DIR, 'thumbs')
+const METADATA_PATH = path.join(DATA_DIR, 'metadata.json')
+
+async function ensureDirs() {
+  await fs.mkdir(PHOTOS_DIR, { recursive: true })
+  await fs.mkdir(THUMBS_DIR, { recursive: true })
+}
 
 export async function getAppData(): Promise<AppData> {
   try {
-    const { blobs } = await list({ prefix: METADATA_PATH })
-    const metaBlob = blobs.find((b) => b.pathname === METADATA_PATH)
-    if (metaBlob) {
-      const response = await fetch(metaBlob.url, { cache: 'no-store' })
-      if (response.ok) {
-        return response.json()
-      }
-    }
-  } catch (e) {
-    console.error('Failed to read app data:', e)
+    await ensureDirs()
+    const raw = await fs.readFile(METADATA_PATH, 'utf-8')
+    return JSON.parse(raw)
+  } catch {
+    return { photos: [] }
   }
-  return { photos: [] }
 }
 
 export async function saveAppData(data: AppData): Promise<void> {
-  // Delete existing metadata blob first
-  try {
-    const { blobs } = await list({ prefix: METADATA_PATH })
-    const existing = blobs.find((b) => b.pathname === METADATA_PATH)
-    if (existing) {
-      await del(existing.url)
-    }
-  } catch {}
-
-  await put(METADATA_PATH, JSON.stringify(data), {
-    access: 'public',
-    addRandomSuffix: false,
-    contentType: 'application/json',
-  })
+  await ensureDirs()
+  await fs.writeFile(METADATA_PATH, JSON.stringify(data, null, 2))
 }
 
 export async function uploadPhoto(
   file: Buffer,
   filename: string,
 ): Promise<string> {
-  const blob = await put(`photos/${filename}`, file, {
-    access: 'public',
-    addRandomSuffix: false,
-    contentType: 'image/jpeg',
-  })
-  return blob.url
+  await ensureDirs()
+  const filePath = path.join(PHOTOS_DIR, filename)
+  await fs.writeFile(filePath, file)
+  return `/api/local-files/photos/${filename}`
 }
 
 export async function uploadThumbnail(
   file: Buffer,
   filename: string,
 ): Promise<string> {
-  const blob = await put(`thumbs/${filename}`, file, {
-    access: 'public',
-    addRandomSuffix: false,
-    contentType: 'image/jpeg',
-  })
-  return blob.url
+  await ensureDirs()
+  const filePath = path.join(THUMBS_DIR, filename)
+  await fs.writeFile(filePath, file)
+  return `/api/local-files/thumbs/${filename}`
 }
 
 export async function deletePhotoBlobs(
@@ -65,7 +52,12 @@ export async function deletePhotoBlobs(
   thumbnailUrl: string,
 ): Promise<void> {
   try {
-    await del([photoUrl, thumbnailUrl])
+    const photoFile = path.join(DATA_DIR, photoUrl.replace('/api/local-files/', ''))
+    const thumbFile = path.join(DATA_DIR, thumbnailUrl.replace('/api/local-files/', ''))
+    await Promise.all([
+      fs.unlink(photoFile).catch(() => {}),
+      fs.unlink(thumbFile).catch(() => {}),
+    ])
   } catch (e) {
     console.error('Failed to delete photo blobs:', e)
   }
