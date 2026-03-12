@@ -1,71 +1,278 @@
 'use client'
 
-import { useMemo } from 'react'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
-import L from 'leaflet'
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import Map, { Marker, Source, Layer, NavigationControl } from 'react-map-gl/maplibre'
+import maplibregl from 'maplibre-gl'
+import Supercluster from 'supercluster'
 import type { Photo } from '@/lib/types'
+import type { MapStyle } from '@/lib/useSettings'
 
 interface MapContentProps {
   photos: Photo[]
   onPhotoClick: (photo: Photo) => void
+  flyToPhoto: Photo | null
+  mapStyle: MapStyle
+  showJourneyLines: boolean
 }
 
-function createPhotoIcon(thumbnailUrl: string) {
-  return L.divIcon({
-    className: 'photo-marker',
-    html: `<div class="marker-circle"><img src="${thumbnailUrl}" alt="" loading="lazy" /></div>`,
-    iconSize: [52, 52],
-    iconAnchor: [26, 26],
-  })
+const TILE_URLS: Record<MapStyle, string> = {
+  watercolor:
+    'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+  light:
+    'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark:
+    'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
 }
 
-function FitBounds({ photos }: { photos: Photo[] }) {
-  const map = useMap()
+const BG_COLORS: Record<MapStyle, string> = {
+  watercolor: '#b8d4e3',
+  light: '#e8e8e8',
+  dark: '#1a1a2e',
+}
 
-  useMemo(() => {
-    if (photos.length === 0) return
-    if (photos.length === 1) {
-      map.setView([photos[0].lat, photos[0].lng], 12)
-      return
+function buildStyle(style: MapStyle): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      'raster-tiles': {
+        type: 'raster',
+        tiles: [TILE_URLS[style]],
+        tileSize: 256,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      },
+    },
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: {
+          'background-color': BG_COLORS[style],
+        },
+      },
+      {
+        id: 'raster-layer',
+        type: 'raster',
+        source: 'raster-tiles',
+        minzoom: 0,
+        maxzoom: 20,
+        paint: {
+          'raster-fade-duration': 300,
+        },
+      },
+    ],
+    sky: {
+      'sky-color': '#fdf2f4',
+      'horizon-color': '#fecdd3',
+      'fog-color': '#fdf2f4',
+      'sky-horizon-blend': 0.5,
+      'horizon-fog-blend': 0.5,
+      'fog-ground-blend': 0.3,
+    },
+  }
+}
+
+type PhotoFeature = GeoJSON.Feature<GeoJSON.Point, { index: number }>
+
+export default function MapContent({
+  photos,
+  onPhotoClick,
+  flyToPhoto,
+  mapStyle,
+  showJourneyLines,
+}: MapContentProps) {
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [clusters, setClusters] = useState<any[]>([])
+
+  // Memoize style so it only changes when mapStyle prop changes
+  const memoizedStyle = useMemo(() => buildStyle(mapStyle), [mapStyle])
+
+  // Supercluster index
+  const superclusterRef = useRef<Supercluster<{ index: number }>>(
+    new Supercluster({ radius: 60, maxZoom: 16 }),
+  )
+
+  const points: PhotoFeature[] = useMemo(
+    () =>
+      photos.map((p, i) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+        properties: { index: i },
+      })),
+    [photos],
+  )
+
+  useEffect(() => {
+    superclusterRef.current = new Supercluster({ radius: 60, maxZoom: 16 })
+    superclusterRef.current.load(points)
+    updateClusters()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points])
+
+  const updateClusters = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    const bounds = map.getBounds()
+    const zoom = Math.floor(map.getZoom())
+    const bbox: GeoJSON.BBox = [
+      bounds.getWest(),
+      bounds.getSouth(),
+      bounds.getEast(),
+      bounds.getNorth(),
+    ]
+    const c = superclusterRef.current.getClusters(bbox, zoom) as unknown[]
+    setClusters(c)
+  }, [])
+
+  // Fit bounds on initial load / photo changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || photos.length === 0) return
+    const timeout = setTimeout(() => {
+      if (photos.length === 1) {
+        map.flyTo({ center: [photos[0].lng, photos[0].lat], zoom: 12, duration: 1500 })
+      } else {
+        const bounds = new maplibregl.LngLatBounds()
+        photos.forEach((p) => bounds.extend([p.lng, p.lat]))
+        map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 1500 })
+      }
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [photos])
+
+  // Fly to selected photo
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !flyToPhoto) return
+    map.flyTo({
+      center: [flyToPhoto.lng, flyToPhoto.lat],
+      zoom: 15,
+      duration: 2000,
+    })
+  }, [flyToPhoto])
+
+  // Journey line GeoJSON
+  const journeyLine = useMemo(() => {
+    if (!showJourneyLines || photos.length < 2) return null
+    const sorted = [...photos].sort((a, b) => {
+      const da = a.dateTaken || a.dateUploaded
+      const db = b.dateTaken || b.dateUploaded
+      return new Date(da).getTime() - new Date(db).getTime()
+    })
+    return {
+      type: 'Feature' as const,
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: sorted.map((p) => [p.lng, p.lat]),
+      },
+      properties: {},
     }
-    const bounds = L.latLngBounds(photos.map((p) => [p.lat, p.lng]))
-    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 })
-  }, [photos, map])
+  }, [photos, showJourneyLines])
 
-  return null
-}
+  function handleClusterClick(
+    clusterId: number,
+    lng: number,
+    lat: number,
+  ) {
+    const zoom = superclusterRef.current.getClusterExpansionZoom(clusterId)
+    mapRef.current?.flyTo({ center: [lng, lat], zoom, duration: 1000 })
+  }
 
-export default function MapContent({ photos, onPhotoClick }: MapContentProps) {
-  const defaultCenter: [number, number] = photos.length > 0
-    ? [photos[0].lat, photos[0].lng]
-    : [40, -30]
-  const defaultZoom = photos.length > 0 ? 12 : 3
+  // Register native map events for cluster updates (no React re-renders)
+  const handleMapLoad = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.on('moveend', updateClusters)
+    map.on('zoomend', updateClusters)
+    updateClusters()
+  }, [updateClusters])
+
+  const initialViewState = useMemo(() => ({
+    longitude: photos.length > 0 ? photos[0].lng : -30,
+    latitude: photos.length > 0 ? photos[0].lat : 40,
+    zoom: photos.length > 0 ? 3 : 1.5,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []) // intentionally empty — only compute once on mount
 
   return (
-    <MapContainer
-      center={defaultCenter}
-      zoom={defaultZoom}
-      className="w-full h-screen"
-      zoomControl={true}
-      attributionControl={false}
-    >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
-      />
+    <div className="w-full h-screen globe-bg">
+      <Map
+        ref={(ref) => {
+          if (ref) mapRef.current = ref.getMap()
+        }}
+        initialViewState={initialViewState}
+        onLoad={handleMapLoad}
+        mapLib={maplibregl}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle={memoizedStyle}
+        projection={{ type: 'globe' }}
+        attributionControl={false}
+      >
+        <NavigationControl position="top-right" showCompass={false} visualizePitch={false} />
 
-      {photos.map((photo) => (
-        <Marker
-          key={photo.id}
-          position={[photo.lat, photo.lng]}
-          icon={createPhotoIcon(photo.thumbnailUrl)}
-          eventHandlers={{
-            click: () => onPhotoClick(photo),
-          }}
-        />
-      ))}
+        {/* Journey lines */}
+        {journeyLine && (
+          <Source id="journey" type="geojson" data={journeyLine}>
+            <Layer
+              id="journey-line"
+              type="line"
+              paint={{
+                'line-color': '#f9a8b8',
+                'line-width': 3,
+                'line-opacity': 0.5,
+                'line-dasharray': [6, 10],
+              }}
+            />
+          </Source>
+        )}
 
-      <FitBounds photos={photos} />
+        {/* Clusters and markers */}
+        {clusters.map((feature: GeoJSON.Feature<GeoJSON.Point>) => {
+          const [lng, lat] = feature.geometry.coordinates
+          const props = feature.properties as Record<string, unknown>
+          const isCluster = props.cluster === true
+
+          if (isCluster) {
+            const clusterId = props.cluster_id as number
+            const pointCount = props.point_count as number
+            return (
+              <Marker key={`cluster-${clusterId}`} longitude={lng} latitude={lat}>
+                <button
+                  className="cluster-marker"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleClusterClick(clusterId, lng, lat)
+                  }}
+                >
+                  {pointCount}
+                </button>
+              </Marker>
+            )
+          }
+
+          const photo = photos[props.index as number]
+          if (!photo) return null
+
+          return (
+            <Marker key={photo.id} longitude={lng} latitude={lat}>
+              <button
+                className="marker-circle animate-bounce-in"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onPhotoClick(photo)
+                }}
+              >
+                <img
+                  src={photo.thumbnailUrl}
+                  alt={photo.caption || ''}
+                  loading="lazy"
+                />
+              </button>
+            </Marker>
+          )
+        })}
+      </Map>
 
       {/* Empty state */}
       {photos.length === 0 && (
@@ -76,11 +283,12 @@ export default function MapContent({ photos, onPhotoClick }: MapContentProps) {
               No memories yet
             </h2>
             <p className="text-gray-400 text-sm">
-              Tap the <span className="text-primary-500 font-bold">+</span> button to add your first photo
+              Tap the <span className="text-primary-500 font-bold">+</span> button
+              to add your first photo
             </p>
           </div>
         </div>
       )}
-    </MapContainer>
+    </div>
   )
 }

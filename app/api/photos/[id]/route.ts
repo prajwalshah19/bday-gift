@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppData, saveAppData, deletePhotoBlobs } from '@/lib/store'
 
-// Update photo caption
+// Update photo caption and/or location
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const { caption } = await request.json()
+  const body = await request.json()
   const data = await getAppData()
   const photo = data.photos.find((p) => p.id === params.id)
 
@@ -14,7 +14,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Photo not found' }, { status: 404 })
   }
 
-  photo.caption = caption
+  if (body.caption !== undefined) photo.caption = body.caption
+  if (body.lat !== undefined && body.lng !== undefined) {
+    photo.lat = Number(body.lat)
+    photo.lng = Number(body.lng)
+  }
+
   await saveAppData(data)
 
   return NextResponse.json(photo)

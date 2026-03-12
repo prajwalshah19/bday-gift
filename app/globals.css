@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import 'leaflet/dist/leaflet.css';
+@import 'maplibre-gl/dist/maplibre-gl.css';
 
 :root {
   --foreground: #1a1a1a;
@@ -31,61 +31,132 @@ html, body {
   }
 }
 
-/* Leaflet photo markers */
-.photo-marker {
-  background: none !important;
-  border: none !important;
+/* Globe background — cartoonish clouds, synced to time of day via JS */
+.globe-bg {
+  --sky-top: #a8d8f0;
+  --sky-mid: #d4ecf9;
+  --sky-bottom: #fce4ec;
+  --cloud-opacity: 0.7;
+
+  background-color: var(--sky-top);
+  background-image:
+    /* large fluffy clouds */
+    radial-gradient(ellipse 180px 80px at 15% 20%, rgba(255,255,255,var(--cloud-opacity)) 0%, transparent 70%),
+    radial-gradient(ellipse 140px 60px at 18% 18%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.2)) 0%, transparent 70%),
+    radial-gradient(ellipse 220px 90px at 70% 15%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.05)) 0%, transparent 70%),
+    radial-gradient(ellipse 160px 70px at 73% 12%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.2)) 0%, transparent 70%),
+    radial-gradient(ellipse 200px 80px at 45% 80%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.1)) 0%, transparent 70%),
+    radial-gradient(ellipse 150px 65px at 42% 82%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.25)) 0%, transparent 70%),
+    /* small puffs */
+    radial-gradient(ellipse 100px 50px at 90% 40%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.2)) 0%, transparent 70%),
+    radial-gradient(ellipse 90px 45px at 5% 60%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.2)) 0%, transparent 70%),
+    radial-gradient(ellipse 120px 55px at 30% 50%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.3)) 0%, transparent 70%),
+    radial-gradient(ellipse 110px 50px at 80% 70%, rgba(255,255,255,calc(var(--cloud-opacity) - 0.25)) 0%, transparent 70%),
+    /* base sky gradient */
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 40%, var(--sky-bottom) 100%);
 }
 
+/* Photo marker circles on globe */
 .marker-circle {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  border: 3px solid white;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border: 4px solid white;
+  box-shadow: 0 4px 16px rgba(244, 63, 94, 0.2);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  background: white;
 }
 
 .marker-circle:hover {
   transform: scale(1.15);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 0 0 2px #f43f5e;
+  box-shadow: 0 6px 24px rgba(244, 63, 94, 0.35), 0 0 0 2px #f43f5e;
 }
 
 .marker-circle img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
-/* Leaflet popup overrides */
-.leaflet-popup-content-wrapper {
+/* Cluster markers */
+.cluster-marker {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fecdd3;
+  color: #9f1239;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  box-shadow: 0 4px 16px rgba(244, 63, 94, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.cluster-marker:hover {
+  transform: scale(1.1);
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* MapLibre zoom controls — whimsical style */
+.maplibregl-ctrl-top-right {
+  top: 64px !important;
+  right: 12px !important;
+}
+
+.maplibregl-ctrl-group {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: none !important;
   border-radius: 16px !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
-  padding: 0 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+  overflow: hidden !important;
 }
 
-.leaflet-popup-content {
-  margin: 0 !important;
-  width: auto !important;
-}
-
-.leaflet-popup-tip {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
-}
-
-/* Leaflet zoom controls */
-.leaflet-control-zoom {
+.maplibregl-ctrl-group button {
+  width: 40px !important;
+  height: 40px !important;
   border: none !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  color: #6b7280 !important;
 }
 
-.leaflet-control-zoom a {
-  border: none !important;
-  color: #374151 !important;
+.maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: rgba(244, 63, 94, 0.08) !important;
+  color: #f43f5e !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: none !important;
+}
+
+/* MapLibre attribution — subtle */
+.maplibregl-ctrl-attrib {
+  font-size: 10px !important;
+  opacity: 0.4;
+}
+
+.maplibregl-ctrl-attrib-button {
+  display: none !important;
 }
 
 /* PIN input styling */

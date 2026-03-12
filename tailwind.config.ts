@@ -31,6 +31,7 @@ const config: Config = {
         'slide-up': 'slideUp 0.5s ease-out',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
         'float': 'float 3s ease-in-out infinite',
+        'bounce-in': 'bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
       keyframes: {
         fadeIn: {
@@ -48,6 +49,10 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        bounceIn: {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
     },
