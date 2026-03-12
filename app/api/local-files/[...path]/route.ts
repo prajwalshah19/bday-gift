@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs/promises'
-import path from 'path'
 
-const DATA_DIR = path.join(process.cwd(), '.local-storage')
+const IS_LOCAL = process.env.NODE_ENV === 'development' && !process.env.BLOB_READ_WRITE_TOKEN
 
 const MIME_TYPES: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -16,22 +14,55 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { path: string[] } },
 ) {
-  const filePath = path.join(DATA_DIR, ...params.path)
+  if (IS_LOCAL) {
+    // Dev: serve from local filesystem
+    const fs = await import('fs/promises')
+    const path = await import('path')
+    const DATA_DIR = path.join(process.cwd(), '.local-storage')
+    const filePath = path.join(DATA_DIR, ...params.path)
 
-  // Prevent path traversal
-  if (!filePath.startsWith(DATA_DIR)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!filePath.startsWith(DATA_DIR)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    try {
+      const file = await fs.readFile(filePath)
+      const ext = path.extname(filePath).slice(1).toLowerCase()
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream'
+      return new NextResponse(file, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      })
+    } catch {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+  }
+
+  // Prod: proxy from Vercel Blob
+  // The blob URL is passed as a query param
+  const blobUrl = _request.nextUrl.searchParams.get('url')
+  if (!blobUrl) {
+    return NextResponse.json({ error: 'Missing url param' }, { status: 400 })
   }
 
   try {
-    const file = await fs.readFile(filePath)
-    const ext = path.extname(filePath).slice(1).toLowerCase()
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream'
+    const res = await fetch(blobUrl)
+    if (!res.ok) {
+      return NextResponse.json({ error: 'Blob fetch failed' }, { status: 502 })
+    }
 
-    return new NextResponse(file, {
-      headers: { 'Content-Type': contentType },
+    const body = res.body
+    const contentType = res.headers.get('content-type') || 'image/jpeg'
+
+    return new NextResponse(body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
     })
   } catch {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Proxy error' }, { status: 502 })
   }
 }

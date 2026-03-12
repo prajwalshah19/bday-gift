@@ -15,6 +15,11 @@ async function localFs() {
   return { fs, path, DATA_DIR, ensureDirs }
 }
 
+// Convert a blob URL to a proxy URL that our API serves
+function proxyUrl(blobUrl: string, pathPrefix: string): string {
+  return `/api/local-files/${pathPrefix}?url=${encodeURIComponent(blobUrl)}`
+}
+
 // --------------- App Data (metadata.json) ---------------
 export async function getAppData(): Promise<AppData> {
   if (IS_LOCAL) {
@@ -31,10 +36,8 @@ export async function getAppData(): Promise<AppData> {
 
   try {
     const { blobs } = await list({ prefix: 'metadata' })
-    console.log('Blob list result:', blobs.map(b => b.pathname))
     const metaBlob = blobs.find((b) => b.pathname === 'metadata.json')
     if (metaBlob) {
-      // Use downloadUrl to bypass CDN caching
       const url = metaBlob.downloadUrl || metaBlob.url
       const res = await fetch(url + '?t=' + Date.now())
       if (res.ok) return res.json()
@@ -54,7 +57,6 @@ export async function saveAppData(data: AppData): Promise<void> {
     return
   }
 
-  // put() with addRandomSuffix: false overwrites existing blob
   await put('metadata.json', JSON.stringify(data), {
     access: 'public',
     addRandomSuffix: false,
@@ -80,7 +82,7 @@ export async function uploadPhoto(
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return blob.url
+  return proxyUrl(blob.url, `photos/${filename}`)
 }
 
 // --------------- Thumbnail Upload ---------------
@@ -101,7 +103,7 @@ export async function uploadThumbnail(
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return blob.url
+  return proxyUrl(blob.url, `thumbs/${filename}`)
 }
 
 // --------------- Delete ---------------
@@ -122,7 +124,16 @@ export async function deletePhotoBlobs(
   }
 
   try {
-    await del([photoUrl, thumbnailUrl])
+    // Extract real blob URL from proxy URL
+    const extractBlobUrl = (proxyStr: string) => {
+      try {
+        const u = new URL(proxyStr, 'http://localhost')
+        return u.searchParams.get('url') || proxyStr
+      } catch {
+        return proxyStr
+      }
+    }
+    await del([extractBlobUrl(photoUrl), extractBlobUrl(thumbnailUrl)])
   } catch (e) {
     console.error('Failed to delete photo blobs:', e)
   }
