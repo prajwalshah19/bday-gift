@@ -48,9 +48,13 @@ export async function GET(
   }
 
   try {
-    const res = await fetch(blobUrl)
+    const res = await fetch(blobUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+      },
+    })
     if (!res.ok) {
-      return NextResponse.json({ error: 'Blob fetch failed' }, { status: 502 })
+      return NextResponse.json({ error: 'Blob fetch failed', status: res.status }, { status: 502 })
     }
 
     const body = res.body

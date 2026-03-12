@@ -39,7 +39,12 @@ export async function getAppData(): Promise<AppData> {
     const metaBlob = blobs.find((b) => b.pathname === 'metadata.json')
     if (metaBlob) {
       const url = metaBlob.downloadUrl || metaBlob.url
-      const res = await fetch(url + '?t=' + Date.now())
+      const res = await fetch(url + '?t=' + Date.now(), {
+        headers: {
+          Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+        },
+        cache: 'no-store',
+      })
       if (res.ok) return res.json()
     }
   } catch (e) {
