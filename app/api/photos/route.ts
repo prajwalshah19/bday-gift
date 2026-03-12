@@ -51,10 +51,21 @@ export async function POST(request: NextRequest) {
       comments: [],
     }
 
-    // Update metadata
-    const data = await getAppData()
-    data.photos.push(newPhoto)
-    await saveAppData(data)
+    // Update metadata with retry to handle race conditions
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const data = await getAppData()
+        // Avoid duplicates if a retry re-reads
+        if (!data.photos.some((p) => p.id === id)) {
+          data.photos.push(newPhoto)
+        }
+        await saveAppData(data)
+        break
+      } catch (e) {
+        if (attempt === 2) throw e
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)))
+      }
+    }
 
     return NextResponse.json(newPhoto, { status: 201 })
   } catch (e) {

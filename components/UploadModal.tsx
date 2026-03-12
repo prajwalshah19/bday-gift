@@ -44,7 +44,7 @@ async function generateThumbnail(file: File, maxSize = 200): Promise<Blob> {
   })
 }
 
-async function compressImage(file: File, maxDim = 1600, quality = 0.8): Promise<Blob> {
+async function compressImage(file: File, maxDim = 1200, quality = 0.7): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
@@ -172,29 +172,51 @@ export default function UploadModal({ onClose, onUploaded }: UploadModalProps) {
 
     let uploaded = 0
     for (const photo of photosWithLocation) {
-      try {
-        const formData = new FormData()
-        formData.append('photo', photo.compressed, photo.file.name)
-        formData.append('thumbnail', photo.thumbnail, 'thumb.jpg')
-        formData.append('lat', String(photo.lat))
-        formData.append('lng', String(photo.lng))
-        if (photo.dateTaken) formData.append('dateTaken', photo.dateTaken)
+      const formData = new FormData()
+      formData.append('photo', photo.compressed, photo.file.name)
+      formData.append('thumbnail', photo.thumbnail, 'thumb.jpg')
+      formData.append('lat', String(photo.lat))
+      formData.append('lng', String(photo.lng))
+      if (photo.dateTaken) formData.append('dateTaken', photo.dateTaken)
 
-        const res = await fetch('/api/photos', {
-          method: 'POST',
-          body: formData,
-        })
+      let lastError = ''
+      let success = false
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch('/api/photos', {
+            method: 'POST',
+            body: formData,
+          })
 
-        if (!res.ok) throw new Error('Upload failed')
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            lastError = body.detail || body.error || `HTTP ${res.status}`
+            if (attempt === 0) {
+              await new Promise((r) => setTimeout(r, 1000))
+              continue
+            }
+          } else {
+            success = true
+            break
+          }
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : String(e)
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 1000))
+            continue
+          }
+        }
+      }
 
-        uploaded++
-        setUploadProgress(Math.round((uploaded / photosWithLocation.length) * 100))
-      } catch (e) {
-        console.error('Upload failed:', e)
-        setError(`Failed to upload ${photo.file.name}`)
+      if (!success) {
+        console.error('Upload failed after retries:', lastError)
+        setError(`Failed to upload ${photo.file.name}: ${lastError}`)
         setUploading(false)
         return
       }
+
+      uploaded++
+      setUploadProgress(Math.round((uploaded / photosWithLocation.length) * 100))
     }
 
     // Clean up previews
