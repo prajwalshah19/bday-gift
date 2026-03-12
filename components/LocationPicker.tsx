@@ -16,7 +16,7 @@ const mapStyle: maplibregl.StyleSpecification = {
   sources: {
     'raster-tiles': {
       type: 'raster',
-      tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'],
+      tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'],
       tileSize: 256,
     },
   },

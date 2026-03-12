@@ -17,7 +17,7 @@ interface MapContentProps {
 
 const TILE_URLS: Record<MapStyle, string> = {
   watercolor:
-    'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+    'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
   light:
     'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   dark:
@@ -25,7 +25,7 @@ const TILE_URLS: Record<MapStyle, string> = {
 }
 
 const BG_COLORS: Record<MapStyle, string> = {
-  watercolor: '#b8d4e3',
+  watercolor: '#f0ebe3',
   light: '#e8e8e8',
   dark: '#1a1a2e',
 }

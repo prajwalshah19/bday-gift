@@ -9,7 +9,7 @@ interface SettingsPanelProps {
 }
 
 const styleOptions: { value: MapStyle; label: string; desc: string }[] = [
-  { value: 'watercolor', label: 'Watercolor', desc: 'Painterly & warm' },
+  { value: 'watercolor', label: 'Voyager', desc: 'Colorful & warm' },
   { value: 'light', label: 'Light', desc: 'Clean & minimal' },
   { value: 'dark', label: 'Dark', desc: 'Moody nighttime' },
 ]
