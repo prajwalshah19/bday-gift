@@ -15,9 +15,11 @@ interface MapContentProps {
   showJourneyLines: boolean
 }
 
+const STADIA_KEY = process.env.NEXT_PUBLIC_STADIA_API_KEY || ''
+
 const TILE_URLS: Record<MapStyle, string> = {
   watercolor:
-    'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+    `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${STADIA_KEY}`,
   light:
     'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   dark:
