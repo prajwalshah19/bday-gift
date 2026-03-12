@@ -60,6 +60,7 @@ export async function saveAppData(data: AppData): Promise<void> {
   await put('metadata.json', JSON.stringify(data), {
     access: 'private',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/json',
   })
 }
@@ -80,6 +81,7 @@ export async function uploadPhoto(
   const blob = await put(`photos/${filename}`, file, {
     access: 'private',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'image/jpeg',
   })
   return proxyUrl(blob.url, `photos/${filename}`)
@@ -101,6 +103,7 @@ export async function uploadThumbnail(
   const blob = await put(`thumbs/${filename}`, file, {
     access: 'private',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'image/jpeg',
   })
   return proxyUrl(blob.url, `thumbs/${filename}`)
