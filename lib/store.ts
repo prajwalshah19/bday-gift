@@ -56,7 +56,6 @@ export async function saveAppData(data: AppData): Promise<void> {
 
   // put() with addRandomSuffix: false overwrites existing blob
   await put('metadata.json', JSON.stringify(data), {
-    access: 'public',
     addRandomSuffix: false,
     contentType: 'application/json',
   })
@@ -76,7 +75,6 @@ export async function uploadPhoto(
   }
 
   const blob = await put(`photos/${filename}`, file, {
-    access: 'public',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
@@ -97,7 +95,6 @@ export async function uploadThumbnail(
   }
 
   const blob = await put(`thumbs/${filename}`, file, {
-    access: 'public',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
