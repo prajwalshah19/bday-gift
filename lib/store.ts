@@ -30,10 +30,13 @@ export async function getAppData(): Promise<AppData> {
   }
 
   try {
-    const { blobs } = await list({ prefix: 'metadata.json' })
+    const { blobs } = await list({ prefix: 'metadata' })
+    console.log('Blob list result:', blobs.map(b => b.pathname))
     const metaBlob = blobs.find((b) => b.pathname === 'metadata.json')
     if (metaBlob) {
-      const res = await fetch(metaBlob.downloadUrl, { cache: 'no-store' })
+      // Use downloadUrl to bypass CDN caching
+      const url = metaBlob.downloadUrl || metaBlob.url
+      const res = await fetch(url + '?t=' + Date.now())
       if (res.ok) return res.json()
     }
   } catch (e) {
@@ -51,15 +54,9 @@ export async function saveAppData(data: AppData): Promise<void> {
     return
   }
 
-  // Delete existing then write new
-  try {
-    const { blobs } = await list({ prefix: 'metadata.json' })
-    const existing = blobs.find((b) => b.pathname === 'metadata.json')
-    if (existing) await del(existing.url)
-  } catch {}
-
+  // put() with addRandomSuffix: false overwrites existing blob
   await put('metadata.json', JSON.stringify(data), {
-    access: 'private',
+    access: 'public',
     addRandomSuffix: false,
     contentType: 'application/json',
   })
@@ -78,12 +75,12 @@ export async function uploadPhoto(
     return `/api/local-files/photos/${filename}`
   }
 
-  await put(`photos/${filename}`, file, {
-    access: 'private',
+  const blob = await put(`photos/${filename}`, file, {
+    access: 'public',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return `/api/blob/photos/${filename}`
+  return blob.url
 }
 
 // --------------- Thumbnail Upload ---------------
@@ -99,12 +96,12 @@ export async function uploadThumbnail(
     return `/api/local-files/thumbs/${filename}`
   }
 
-  await put(`thumbs/${filename}`, file, {
-    access: 'private',
+  const blob = await put(`thumbs/${filename}`, file, {
+    access: 'public',
     addRandomSuffix: false,
     contentType: 'image/jpeg',
   })
-  return `/api/blob/thumbs/${filename}`
+  return blob.url
 }
 
 // --------------- Delete ---------------
