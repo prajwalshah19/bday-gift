@@ -20,7 +20,7 @@ const slides = [
   {
     emoji: '💌',
     title: 'A Note For You',
-    body: "Every pin on this map is a place where we made a memory together. I can't wait to fill it with even more. Happy birthday, my love.",
+    body: "Hi Jhanvi, happy birthday! I love you and I miss you so much. Every pin on this map is a memory that we shared together — and I can't wait to make so many more! I hope you enjoy it and can't wait to fill it with so many more! — Prajie",
   },
 ]
 
